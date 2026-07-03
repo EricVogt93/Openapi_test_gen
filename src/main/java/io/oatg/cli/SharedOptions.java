@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,8 +23,13 @@ import java.util.stream.Collectors;
 public final class SharedOptions {
 
     @Option(names = "--spec", required = true, paramLabel = "<file|url>",
-            description = "OpenAPI 3.0/3.1 document, YAML or JSON")
+            description = "OpenAPI 3.0/3.1 document (file or URL), or a Swagger UI URL — "
+                    + "the OpenAPI document is auto-discovered")
     String spec;
+
+    @Option(names = "--spec-timeout", defaultValue = "10", paramLabel = "<seconds>",
+            description = "Timeout per spec-discovery request (default: ${DEFAULT-VALUE}s)")
+    long specTimeoutSeconds;
 
     @Option(names = "--out", paramLabel = "<dir>", defaultValue = "oatg-out",
             description = "Output directory (default: ${DEFAULT-VALUE})")
@@ -74,6 +80,12 @@ public final class SharedOptions {
         return seed != null ? seed : new SecureRandom().nextLong();
     }
 
+    static void printDiscovery(io.oatg.core.GenerationService.Outcome outcome, String rawSpec) {
+        if (!outcome.specLocation().equals(rawSpec)) {
+            System.out.println("Discovered OpenAPI document at " + outcome.specLocation());
+        }
+    }
+
     OatgConfig toConfig(long resolvedSeed) {
         try {
             Files.createDirectories(out);
@@ -82,7 +94,8 @@ public final class SharedOptions {
         }
         return new OatgConfig(spec, out, resolvedSeed, includes, excludes,
                 methods.stream().map(m -> m.toUpperCase(Locale.ROOT)).collect(Collectors.toSet()),
-                parseOptionalProps(), maxDepth, parseAuth(), parseHeaders());
+                parseOptionalProps(), maxDepth, parseAuth(), parseHeaders(),
+                Duration.ofSeconds(specTimeoutSeconds));
     }
 
     private OptionalPropsMode parseOptionalProps() {

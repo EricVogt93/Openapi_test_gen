@@ -2,6 +2,7 @@ package io.oatg.cli;
 
 import io.oatg.OatgException;
 import io.oatg.artifact.RequestCollectionWriter;
+import io.oatg.core.BaseUrlResolver;
 import io.oatg.core.GenerationService;
 import io.oatg.core.OatgConfig;
 import io.oatg.exec.ExecutionEngine;
@@ -63,6 +64,7 @@ public final class RunCommand implements Callable<Integer> {
 
         OatgConfig config = shared.toConfig(seed);
         GenerationService.Outcome outcome = new GenerationService(extensions).prepare(config);
+        SharedOptions.printDiscovery(outcome, shared.spec);
 
         String effectiveBaseUrl = resolveBaseUrl(outcome);
 
@@ -108,17 +110,16 @@ public final class RunCommand implements Callable<Integer> {
     }
 
     private String resolveBaseUrl(GenerationService.Outcome outcome) {
-        if (baseUrl != null) {
-            return baseUrl;
+        BaseUrlResolver.BaseUrl resolved =
+                BaseUrlResolver.resolve(baseUrl, outcome.api(), outcome.suggestedBaseUrl());
+        if (resolved == null) {
+            throw new OatgException("No --base-url given, the spec declares no absolute server URL, "
+                    + "and the spec was loaded from a local file — pass --base-url");
         }
-        if (outcome.api().getServers() != null && !outcome.api().getServers().isEmpty()) {
-            String url = outcome.api().getServers().get(0).getUrl();
-            if (url != null && url.startsWith("http")) {
-                System.out.println("No --base-url given; using first spec server: " + url);
-                return url;
-            }
+        if (baseUrl == null) {
+            System.out.println("Using base URL " + resolved.url() + " (" + resolved.source() + ")");
         }
-        throw new OatgException("No --base-url given and the spec declares no absolute server URL");
+        return resolved.url();
     }
 
     private ReportModel buildReport(GenerationService.Outcome outcome, List<ExecutionResult> results,
@@ -142,7 +143,7 @@ public final class RunCommand implements Callable<Integer> {
         }
         String title = outcome.api().getInfo() != null && outcome.api().getInfo().getTitle() != null
                 ? outcome.api().getInfo().getTitle() : "API";
-        return new ReportModel("oatg", title, shared.spec, effectiveBaseUrl, seed,
+        return new ReportModel("oatg", title, outcome.specLocation(), effectiveBaseUrl, seed,
                 Instant.now().toString(),
                 new ReportModel.Totals(results.size() + outcome.skipped().size(),
                         passed, failed, errors, outcome.skipped().size()),

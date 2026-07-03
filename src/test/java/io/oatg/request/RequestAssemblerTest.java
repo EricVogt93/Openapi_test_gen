@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +31,7 @@ class RequestAssemblerTest {
                 List.of(), List.of(), Set.of(), OptionalPropsMode.ALWAYS, 5,
                 new AuthOptions("test-token", null,
                         List.of(new AuthOptions.ApiKey("api_key", "secret", null))),
-                Map.of("X-Custom", "1"));
+                Map.of("X-Custom", "1"), Duration.ofSeconds(5));
         outcome = new GenerationService(Extensions.defaults()).prepare(config);
     }
 
@@ -108,7 +109,7 @@ class RequestAssemblerTest {
                 List.of(), List.of(), Set.of(), OptionalPropsMode.ALWAYS, 5,
                 new AuthOptions("test-token", null,
                         List.of(new AuthOptions.ApiKey("api_key", "secret", null))),
-                Map.of("X-Custom", "1"));
+                Map.of("X-Custom", "1"), Duration.ofSeconds(5));
         GenerationService.Outcome second = new GenerationService(Extensions.defaults()).prepare(config);
         assertThat(second.requests()).isEqualTo(outcome.requests());
     }

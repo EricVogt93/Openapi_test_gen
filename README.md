@@ -13,6 +13,12 @@ einen optionalen AI-Adapter sind bereits vorbereitet.
 ## What it does
 
 - Parses **OpenAPI 3.0 / 3.1** documents (YAML or JSON), resolving all `$ref`s.
+- **Spec auto-discovery:** `--spec` accepts a local file, a direct OpenAPI URL —
+  or just the **Swagger UI URL** (or plain service origin). The tool follows
+  redirects, reads the page / `swagger-initializer.js` / springdoc's
+  `swagger-config`, and falls back to probing well-known paths
+  (`/v3/api-docs`, `/openapi.json`, …). The base URL for `run` is derived
+  automatically from the discovered spec origin when not given.
 - Generates **schema-valid test data** for every operation: types, formats
   (`email`, `uuid`, `date`, `date-time`, `uri`, `ipv4`, …), `enum`, `pattern`
   (via regex generation), `minLength`/`maxLength`, `minimum`/`maximum`
@@ -58,13 +64,18 @@ java -jar build/libs/oatg-0.1.0.jar generate \
 java -jar build/libs/oatg-0.1.0.jar run \
   --spec openapi.yaml --base-url http://localhost:8080 \
   --auth-bearer "$TOKEN" --out oatg-out
+
+# or simply point it at the Swagger UI — spec and base URL are discovered
+java -jar build/libs/oatg-0.1.0.jar run \
+  --spec http://localhost:8080/swagger-ui.html
 ```
 
 ## CLI reference
 
 | Option | Commands | Description |
 |---|---|---|
-| `--spec <file\|url>` | both | OpenAPI 3.0/3.1 document (required) |
+| `--spec <file\|url>` | both | OpenAPI document (file/URL) **or Swagger UI URL** — auto-discovered (required) |
+| `--spec-timeout <seconds>` | both | Timeout per spec-discovery request (default 10) |
 | `--out <dir>` | both | Output directory (default `oatg-out`) |
 | `--seed <long>` | both | Root seed; default random, always printed |
 | `--include <glob>` / `--exclude <glob>` | both | Path filters, repeatable (e.g. `--include '/pets/**'`) |
@@ -84,6 +95,22 @@ java -jar build/libs/oatg-0.1.0.jar run \
 | `--fail-on-5xx` | run | Any 5xx fails, even when declared |
 | `--dry-run` | run | Assemble and print without sending |
 | `--report json,html` | run | Report formats |
+
+## Spec auto-discovery & base URL
+
+When `--spec` is a URL that is not itself an OpenAPI document, oatg discovers
+the spec in this order: deep-link query params (`?url=`, `?configUrl=`) →
+inline page config → `swagger-initializer.js` (Swagger UI 4/5) → springdoc's
+`/v3/api-docs/swagger-config` → well-known paths relative to the origin and
+the UI's context path (`/v3/api-docs`, `/v3/api-docs.yaml`, `/openapi.json`,
+`/openapi.yaml`, `/openapi`, `/swagger.json`, `/api-docs`,
+`/swagger/v1/swagger.json`, `/q/openapi`). Content is sniffed, so lying
+`Content-Type` headers (YAML as `text/plain`) don't matter. If nothing is
+found, the error lists every URL that was tried.
+
+Effective base URL precedence (both commands, printed on the console):
+`--base-url` flag → absolute `servers[0].url` from the spec → relative server
+URL resolved against the discovered spec origin → the discovered origin itself.
 
 ## How data generation works
 

@@ -2,6 +2,7 @@ package io.oatg.cli;
 
 import io.oatg.artifact.GherkinWriter;
 import io.oatg.artifact.RequestCollectionWriter;
+import io.oatg.core.BaseUrlResolver;
 import io.oatg.core.GenerationService;
 import io.oatg.core.OatgConfig;
 import io.oatg.spi.Extensions;
@@ -44,8 +45,14 @@ public final class GenerateCommand implements Callable<Integer> {
 
         OatgConfig config = shared.toConfig(seed);
         GenerationService.Outcome outcome = new GenerationService(extensions).prepare(config);
+        SharedOptions.printDiscovery(outcome, shared.spec);
 
-        String effectiveBaseUrl = baseUrl != null ? baseUrl : specServerUrl(outcome);
+        BaseUrlResolver.BaseUrl resolved =
+                BaseUrlResolver.resolve(baseUrl, outcome.api(), outcome.suggestedBaseUrl());
+        String effectiveBaseUrl = resolved != null ? resolved.url() : null;
+        if (baseUrl == null && resolved != null) {
+            System.out.println("Using base URL " + resolved.url() + " (" + resolved.source() + ")");
+        }
 
         if (formats.contains("collection")) {
             Path file = new RequestCollectionWriter()
@@ -68,12 +75,5 @@ public final class GenerateCommand implements Callable<Integer> {
             System.out.println(outcome.warnings().size() + " generation warning(s); run with -v for details");
         }
         return 0;
-    }
-
-    private static String specServerUrl(GenerationService.Outcome outcome) {
-        if (outcome.api().getServers() != null && !outcome.api().getServers().isEmpty()) {
-            return outcome.api().getServers().get(0).getUrl();
-        }
-        return null;
     }
 }

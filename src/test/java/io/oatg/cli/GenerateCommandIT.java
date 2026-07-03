@@ -70,6 +70,15 @@ class GenerateCommandIT {
     }
 
     @Test
+    void baseUrlFlagIsRecordedInCollection() throws IOException {
+        Path out = tempDir.resolve("with-base");
+        int exit = run(out, "--base-url", "https://staging.example.com");
+        assertThat(exit).isZero();
+        assertThat(Files.readString(out.resolve("requests.json")))
+                .contains("\"baseUrl\" : \"https://staging.example.com\"");
+    }
+
+    @Test
     void missingSpecExitsWithCode2() {
         int exit = Main.buildCommandLine().execute("generate",
                 "--spec", "does-not-exist.yaml", "--out", tempDir.resolve("x").toString());

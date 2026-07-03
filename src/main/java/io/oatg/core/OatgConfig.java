@@ -4,6 +4,7 @@ import io.oatg.gen.OptionalPropsMode;
 import io.oatg.request.auth.AuthOptions;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +22,7 @@ import java.util.Set;
  * @param maxDepth       recursion cap for nested schemas
  * @param auth           static credentials
  * @param extraHeaders   additional static headers for every request
+ * @param specTimeout    timeout per spec-discovery request
  */
 public record OatgConfig(String specLocation,
                          Path outDir,
@@ -31,5 +33,6 @@ public record OatgConfig(String specLocation,
                          OptionalPropsMode optionalProps,
                          int maxDepth,
                          AuthOptions auth,
-                         Map<String, String> extraHeaders) {
+                         Map<String, String> extraHeaders,
+                         Duration specTimeout) {
 }

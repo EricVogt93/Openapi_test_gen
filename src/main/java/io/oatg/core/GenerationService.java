@@ -7,6 +7,7 @@ import io.oatg.request.RequestAssembler;
 import io.oatg.request.auth.AuthConfigurer;
 import io.oatg.spec.OperationExtractor;
 import io.oatg.spec.SpecLoader;
+import io.oatg.spec.SpecResolver;
 import io.oatg.spec.model.EndpointOperation;
 import io.oatg.spec.model.SkippedOperation;
 import io.oatg.spi.Extensions;
@@ -36,16 +37,26 @@ public final class GenerationService {
         this.extensions = extensions;
     }
 
+    /**
+     * @param specLocation     the resolved spec location (may differ from the
+     *                         raw {@code --spec} value after auto-discovery)
+     * @param suggestedBaseUrl origin of the discovered spec URL, or {@code null}
+     *                         when the spec came from a local file
+     */
     public record Outcome(OpenAPI api,
                           long seed,
                           List<GeneratedRequest> requests,
                           Map<String, List<String>> tagsByOperationId,
                           List<SkippedOperation> skipped,
-                          List<String> warnings) {
+                          List<String> warnings,
+                          String specLocation,
+                          String suggestedBaseUrl) {
     }
 
     public Outcome prepare(OatgConfig config) {
-        OpenAPI api = new SpecLoader().load(config.specLocation());
+        SpecResolver.Resolved resolved =
+                new SpecResolver(config.specTimeout()).resolve(config.specLocation());
+        OpenAPI api = new SpecLoader().load(resolved.specLocation());
         OperationExtractor.ExtractionResult extraction = new OperationExtractor().extract(api);
 
         List<SkippedOperation> skipped = new ArrayList<>(extraction.skipped());
@@ -69,7 +80,8 @@ public final class GenerationService {
         }
 
         warnings.forEach(w -> log.warn("{}", w));
-        return new Outcome(api, config.seed(), requests, tags, skipped, warnings);
+        return new Outcome(api, config.seed(), requests, tags, skipped, warnings,
+                resolved.specLocation(), resolved.suggestedBaseUrl());
     }
 
     /**
