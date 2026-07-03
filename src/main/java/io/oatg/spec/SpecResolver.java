@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,6 +54,7 @@ public final class SpecResolver {
 
     private final HttpClient client;
     private final Duration timeout;
+    private final Map<String, String> headers;
 
     /**
      * @param specLocation     file path or URL to hand to {@link SpecLoader}
@@ -64,7 +66,13 @@ public final class SpecResolver {
     }
 
     public SpecResolver(Duration timeout) {
+        this(timeout, Map.of());
+    }
+
+    /** @param headers auth and extra headers sent with every discovery request */
+    public SpecResolver(Duration timeout, Map<String, String> headers) {
         this.timeout = timeout;
+        this.headers = headers;
         this.client = HttpClient.newBuilder()
                 .connectTimeout(timeout)
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -78,7 +86,9 @@ public final class SpecResolver {
 
         List<String> tried = new ArrayList<>();
         Fetched page = fetch(URI.create(rawSpec), tried).orElseThrow(() ->
-                new OatgException("Could not reach --spec URL " + rawSpec));
+                new OatgException("Could not fetch --spec URL: " + tried.get(tried.size() - 1)
+                        + (tried.get(tried.size() - 1).contains("401")
+                           ? " — is a token required? Pass it with --auth-bearer" : "")));
 
         if (looksLikeOpenApiDocument(page.body())) {
             String location = page.finalUri().toString();
@@ -145,11 +155,12 @@ public final class SpecResolver {
     private Optional<Fetched> fetch(URI uri, List<String> tried) {
         tried.add(uri.toString());
         try {
-            HttpRequest request = HttpRequest.newBuilder(uri)
+            HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
                     .timeout(timeout)
                     .header("Accept", "application/json, application/yaml, text/html, */*")
-                    .GET()
-                    .build();
+                    .GET();
+            headers.forEach(builder::header);
+            HttpRequest request = builder.build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 400) {
                 tried.set(tried.size() - 1, uri + " (HTTP " + response.statusCode() + ")");

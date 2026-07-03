@@ -108,6 +108,11 @@ the UI's context path (`/v3/api-docs`, `/v3/api-docs.yaml`, `/openapi.json`,
 `Content-Type` headers (YAML as `text/plain`) don't matter. If nothing is
 found, the error lists every URL that was tried.
 
+Credentials travel with **every** HTTP call the tool makes: `--auth-bearer`
+(or `--auth-basic`), header-located API keys and `--header` values are also
+sent during discovery and when downloading the spec itself — auth-protected
+Swagger UIs and `/v3/api-docs` endpoints just work.
+
 Effective base URL precedence (both commands, printed on the console):
 `--base-url` flag → absolute `servers[0].url` from the spec → relative server
 URL resolved against the discovered spec origin → the discovered origin itself.

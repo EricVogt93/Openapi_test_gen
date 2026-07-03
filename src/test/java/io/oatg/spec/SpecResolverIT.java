@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.temporaryRedirect;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -156,6 +157,30 @@ class SpecResolverIT {
 
         SpecResolver.Resolved resolved = resolver.resolve(url("/swagger-ui/index.html"));
         assertThat(resolved.specLocation()).isEqualTo(url("/v3/api-docs"));
+    }
+
+    @Test
+    void discoveryFetchesCarryBearerToken() {
+        // every stub REQUIRES the token; unauthenticated requests fall through to 401
+        server.stubFor(get(urlPathEqualTo("/swagger-ui/index.html"))
+                .withHeader("Authorization", equalTo("Bearer secret-token"))
+                .willReturn(aResponse().withHeader("Content-Type", "text/html")
+                        .withBody("<!DOCTYPE html><html></html>")));
+        server.stubFor(get(urlPathEqualTo("/swagger-ui/swagger-initializer.js"))
+                .withHeader("Authorization", equalTo("Bearer secret-token"))
+                .willReturn(aResponse().withBody("window.ui = SwaggerUIBundle({ url: \"/v3/api-docs\" });")));
+        server.stubFor(get(urlPathEqualTo("/v3/api-docs"))
+                .withHeader("Authorization", equalTo("Bearer secret-token"))
+                .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(SPEC_JSON)));
+
+        SpecResolver authenticated = new SpecResolver(Duration.ofSeconds(3),
+                java.util.Map.of("Authorization", "Bearer secret-token"));
+        SpecResolver.Resolved resolved = authenticated.resolve(url("/swagger-ui/index.html"));
+        assertThat(resolved.specLocation()).isEqualTo(url("/v3/api-docs"));
+
+        // counter-check: without the token nothing matches → discovery fails
+        assertThatThrownBy(() -> resolver.resolve(url("/swagger-ui/index.html")))
+                .isInstanceOf(OatgException.class);
     }
 
     @Test

@@ -2,8 +2,12 @@ package io.oatg.request.auth;
 
 import io.oatg.OatgException;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Static credentials supplied on the CLI. OAuth flows are out of scope; a
@@ -13,6 +17,28 @@ public record AuthOptions(String bearerToken, String basicCredentials, List<ApiK
 
     public static AuthOptions none() {
         return new AuthOptions(null, null, List.of());
+    }
+
+    /**
+     * Headers that accompany every HTTP call the tool makes — including spec
+     * discovery and spec download, not just the generated test requests.
+     * Bearer wins over basic; API keys located in query/cookie are excluded
+     * (they are applied during request generation and must not rewrite URLs).
+     */
+    public Map<String, String> asHeaders() {
+        Map<String, String> headers = new LinkedHashMap<>();
+        if (bearerToken != null) {
+            headers.put("Authorization", "Bearer " + bearerToken);
+        } else if (basicCredentials != null) {
+            headers.put("Authorization", "Basic " + Base64.getEncoder()
+                    .encodeToString(basicCredentials.getBytes(StandardCharsets.UTF_8)));
+        }
+        for (ApiKey key : apiKeys) {
+            if (key.location() == null || key.location() == Location.HEADER) {
+                headers.put(key.name(), key.value());
+            }
+        }
+        return headers;
     }
 
     /**

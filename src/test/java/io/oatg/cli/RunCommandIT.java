@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.any;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.temporaryRedirect;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -130,6 +131,39 @@ class RunCommandIT {
         // the API stubs must actually have been hit on this server
         assertThat(server.getAllServeEvents().stream()
                 .anyMatch(e -> e.getRequest().getUrl().startsWith("/pets"))).isTrue();
+    }
+
+    @Test
+    void authProtectedSpecEndToEnd() throws IOException {
+        server.resetAll();
+        String spec = Files.readString(Path.of("src/test/resources/specs/petstore-relative-server.yaml"));
+        // WITHOUT the token: everything is 401
+        server.stubFor(any(anyUrl()).atPriority(10)
+                .willReturn(aResponse().withStatus(401).withBody("{\"error\":\"unauthorized\"}")));
+        // WITH the token: UI page, initializer, spec and API all answer
+        server.stubFor(get(urlPathEqualTo("/swagger-ui/index.html"))
+                .withHeader("Authorization", equalTo("Bearer s3cret")).atPriority(1)
+                .willReturn(aResponse().withHeader("Content-Type", "text/html")
+                        .withBody("<!DOCTYPE html><html></html>")));
+        server.stubFor(get(urlPathEqualTo("/swagger-ui/swagger-initializer.js"))
+                .withHeader("Authorization", equalTo("Bearer s3cret")).atPriority(1)
+                .willReturn(aResponse().withBody("window.ui = SwaggerUIBundle({ url: \"/v3/api-docs\" });")));
+        server.stubFor(get(urlPathEqualTo("/v3/api-docs"))
+                .withHeader("Authorization", equalTo("Bearer s3cret")).atPriority(1)
+                .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(spec)));
+        server.stubFor(get(urlPathMatching("/pets.*"))
+                .withHeader("Authorization", equalTo("Bearer s3cret")).atPriority(1)
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json").withBody("{}")));
+
+        Path out = tempDir.resolve("auth-e2e");
+        int exit = Main.buildCommandLine().execute("run",
+                "--spec", server.baseUrl() + "/swagger-ui/index.html",
+                "--auth-bearer", "s3cret",
+                "--out", out.toString(), "--seed", "42");
+        assertThat(exit).isZero();
+        String report = Files.readString(out.resolve("report.json"));
+        assertThat(report).contains("\"verdict\" : \"PASS\"").doesNotContain("\"verdict\" : \"FAIL\"");
     }
 
     @Test

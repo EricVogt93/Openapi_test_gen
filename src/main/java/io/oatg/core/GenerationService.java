@@ -54,9 +54,10 @@ public final class GenerationService {
     }
 
     public Outcome prepare(OatgConfig config) {
+        Map<String, String> fetchHeaders = fetchHeaders(config);
         SpecResolver.Resolved resolved =
-                new SpecResolver(config.specTimeout()).resolve(config.specLocation());
-        OpenAPI api = new SpecLoader().load(resolved.specLocation());
+                new SpecResolver(config.specTimeout(), fetchHeaders).resolve(config.specLocation());
+        OpenAPI api = new SpecLoader().load(resolved.specLocation(), fetchHeaders);
         OperationExtractor.ExtractionResult extraction = new OperationExtractor().extract(api);
 
         List<SkippedOperation> skipped = new ArrayList<>(extraction.skipped());
@@ -82,6 +83,13 @@ public final class GenerationService {
         warnings.forEach(w -> log.warn("{}", w));
         return new Outcome(api, config.seed(), requests, tags, skipped, warnings,
                 resolved.specLocation(), resolved.suggestedBaseUrl());
+    }
+
+    /** Auth + extra headers that accompany discovery and spec-download fetches. */
+    private static Map<String, String> fetchHeaders(OatgConfig config) {
+        Map<String, String> headers = new LinkedHashMap<>(config.auth().asHeaders());
+        config.extraHeaders().forEach(headers::putIfAbsent);
+        return headers;
     }
 
     /**
