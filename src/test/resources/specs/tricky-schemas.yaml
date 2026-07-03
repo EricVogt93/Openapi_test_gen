@@ -1,0 +1,116 @@
+openapi: 3.0.3
+info:
+  title: Tricky Schemas
+  version: 1.0.0
+paths:
+  /noop:
+    get:
+      operationId: noop
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    PatternWithLength:
+      type: string
+      pattern: '^[A-Z]{3}-[0-9]{4}$'
+      minLength: 8
+      maxLength: 8
+    BoundedMultiple:
+      type: integer
+      minimum: 7
+      maximum: 100
+      multipleOf: 9
+    ExclusiveBounds:
+      type: integer
+      minimum: 5
+      maximum: 7
+      exclusiveMinimum: true
+      exclusiveMaximum: true
+    NegativeRange:
+      type: number
+      minimum: -50.5
+      maximum: -10.25
+    AllOfMerge:
+      allOf:
+        - type: object
+          required: [alpha]
+          properties:
+            alpha:
+              type: string
+              minLength: 5
+        - type: object
+          required: [beta]
+          properties:
+            beta:
+              type: integer
+              minimum: 100
+              maximum: 200
+    OneOfChoice:
+      oneOf:
+        - type: string
+          enum: [left]
+        - type: integer
+          minimum: 1000
+          maximum: 1001
+    RecursiveNode:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecursiveNode'
+    NullableString:
+      type: string
+      nullable: true
+      minLength: 4
+    UniqueEnumArray:
+      type: array
+      minItems: 2
+      maxItems: 3
+      uniqueItems: true
+      items:
+        type: integer
+        minimum: 1
+        maximum: 50
+    FormatShowcase:
+      type: object
+      required: [id, email, createdAt, birthday, homepage, host, ip, blob]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+        birthday:
+          type: string
+          format: date
+        homepage:
+          type: string
+          format: uri
+        host:
+          type: string
+          format: hostname
+        ip:
+          type: string
+          format: ipv4
+        blob:
+          type: string
+          format: byte
+    WithExample:
+      type: string
+      example: from-the-spec
+    WithDefault:
+      type: integer
+      default: 42
+    EmptyRange:
+      type: integer
+      minimum: 10
+      maximum: 5

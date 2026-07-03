@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>oatg report — {{SPEC_TITLE}}</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; margin: 2rem; color: #1a1a2e; }
+  h1 { font-size: 1.4rem; }
+  .meta { color: #555; font-size: 0.9rem; margin-bottom: 1rem; }
+  .totals { display: flex; gap: 1rem; margin: 1rem 0; }
+  .badge { padding: 0.4rem 0.9rem; border-radius: 6px; font-weight: 600; }
+  .pass { background: #e6f4ea; color: #137333; }
+  .fail { background: #fce8e6; color: #a50e0e; }
+  .error { background: #fef7e0; color: #b06000; }
+  .skip { background: #e8eaed; color: #3c4043; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid #e0e0e0; }
+  th { background: #f5f5f5; }
+  tr.FAIL td { background: #fff5f5; }
+  tr.ERROR td { background: #fffaf0; }
+  tr.SKIPPED td { color: #777; }
+  td.v-PASS { color: #137333; font-weight: 600; }
+  td.v-FAIL { color: #a50e0e; font-weight: 600; }
+  td.v-ERROR { color: #b06000; font-weight: 600; }
+  code { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>oatg run report — {{SPEC_TITLE}}</h1>
+<div class="meta">
+  Spec: <code>{{SPEC_LOCATION}}</code> · Base URL: <code>{{BASE_URL}}</code>
+  · Seed: <code>{{SEED}}</code> · {{TIMESTAMP}}
+</div>
+<div class="totals">
+  <span class="badge">Total {{TOTAL}}</span>
+  <span class="badge pass">Pass {{PASSED}}</span>
+  <span class="badge fail">Fail {{FAILED}}</span>
+  <span class="badge error">Error {{ERRORS}}</span>
+  <span class="badge skip">Skipped {{SKIPPED}}</span>
+</div>
+<table>
+  <thead>
+    <tr><th>Verdict</th><th>Method</th><th>Path</th><th>Operation</th><th>Status</th><th>Latency</th><th>Reason</th></tr>
+  </thead>
+  <tbody>
+{{ROWS}}
+  </tbody>
+</table>
+</body>
+</html>

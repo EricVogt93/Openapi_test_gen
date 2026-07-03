@@ -1,0 +1,48 @@
+# Example GitLab CI integration for oatg.
+#
+# Stage 1 builds the fat JAR once; stage 2 shows how a service pipeline can
+# fire generated requests against its freshly deployed review/staging
+# environment. oatg's exit codes drive the pipeline: 0 = all documented,
+# 1 = undeclared responses or transport errors, 2 = configuration error.
+
+stages:
+  - build
+  - api-tests
+
+build-oatg:
+  stage: build
+  image: eclipse-temurin:21-jdk
+  script:
+    - ./gradlew --no-daemon shadowJar
+  artifacts:
+    paths:
+      - build/libs/oatg-0.1.0.jar
+    expire_in: 1 week
+
+api-smoke-test:
+  stage: api-tests
+  image: eclipse-temurin:21-jre
+  # needs: [build-oatg, deploy-staging]
+  script:
+    - java -jar build/libs/oatg-0.1.0.jar run
+      --spec openapi.yaml
+      --base-url "$API_BASE_URL"
+      --auth-bearer "$API_TOKEN"
+      --seed 42
+      --out reports
+  artifacts:
+    when: always
+    paths:
+      - reports/            # report.html, report.json, requests.json
+    expire_in: 1 week
+
+# Tip: run `generate` instead of `run` in a scheduled pipeline to refresh the
+# Gherkin features, and commit them or hand them to the (future) Xray adapter:
+#
+# generate-features:
+#   stage: api-tests
+#   image: eclipse-temurin:21-jre
+#   script:
+#     - java -jar build/libs/oatg-0.1.0.jar generate --spec openapi.yaml --seed 42 --out oatg-out
+#   artifacts:
+#     paths: [oatg-out/features/]
